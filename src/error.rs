@@ -42,6 +42,8 @@ pub enum HandlerError {
     Timeout,
     #[error("sniffer reported failure: {0}")]
     SnifferFailed(String),
+    #[error("fragment error: {0}")]
+    Fragment(std::io::Error),
     #[error("relay error: {0}")]
     Relay(std::io::Error),
 }

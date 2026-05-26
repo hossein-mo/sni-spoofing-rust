@@ -7,6 +7,7 @@ use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
 use crate::error::HandlerError;
+use crate::fragment::FragmentConfig;
 use crate::packet::fingerprint::TlsFingerprint;
 use crate::proto::{ConnId, Deregistration, Registration, SnifferCommand, SnifferResult};
 use crate::relay;
@@ -39,6 +40,7 @@ pub async fn handle_connection(
     upstream_addr: SocketAddr,
     fake_sni: String,
     fingerprint: TlsFingerprint,
+    fragment: Option<FragmentConfig>,
     local_ip: std::net::IpAddr,
     cmd_tx: std::sync::mpsc::Sender<SnifferCommand>,
     conn_timeout_sec: u64,
@@ -53,6 +55,7 @@ pub async fn handle_connection(
         upstream_addr,
         &fake_sni,
         &fingerprint,
+        fragment.as_ref(),
         local_ip,
         &cmd_tx,
         conn_timeout_sec,
@@ -77,10 +80,11 @@ pub async fn handle_connection(
 
 #[allow(clippy::too_many_arguments)]
 async fn handle_inner(
-    client: TcpStream,
+    mut client: TcpStream,
     upstream_addr: SocketAddr,
     fake_sni: &str,
     fingerprint: &TlsFingerprint,
+    fragment: Option<&FragmentConfig>,
     local_ip: std::net::IpAddr,
     cmd_tx: &std::sync::mpsc::Sender<SnifferCommand>,
     conn_timeout_sec: u64,
@@ -161,7 +165,7 @@ async fn handle_inner(
     }
 
     let std_stream: std::net::TcpStream = upstream_sock.into();
-    let upstream = TcpStream::from_std(std_stream).map_err(HandlerError::Connect)?;
+    let mut upstream = TcpStream::from_std(std_stream).map_err(HandlerError::Connect)?;
 
     let connect_result =
         tokio::time::timeout(Duration::from_secs(conn_timeout_sec), upstream.writable()).await;
@@ -208,6 +212,13 @@ async fn handle_inner(
         Ok(Ok(())) => {}
         Ok(Err(e)) => return Err(e),
         Err(_) => return Err(HandlerError::Timeout),
+    }
+
+    if let Some(frag_cfg) = fragment {
+        debug!(port = local_addr.port(), sni_chunk = frag_cfg.sni_chunk, delay_ms = frag_cfg.delay_ms, "fragmenting ClientHello");
+        crate::fragment::forward_fragmented(&mut client, &mut upstream, frag_cfg)
+            .await
+            .map_err(HandlerError::Fragment)?;
     }
 
     info!(port = local_addr.port(), "fake confirmed, starting relay");

@@ -152,6 +152,7 @@ Replace `CLOUDFLARE_IP` with the resolved IP.
 | `connect` | Cloudflare IP and port to forward to; use an IP, not a hostname |
 | `fake_sni` | Fake SNI inserted into the intentionally invalid ClientHello |
 | `fingerprint` | TLS ClientHello fingerprint profile (optional, default: `"default"`) |
+| `fragment` | ClientHello fragmentation config (optional, omit to disable) |
 | `conn_timeout_sec` | Upstream TCP connect timeout |
 | `handshake_timeout_sec` | Time to wait for the fake packet ACK confirmation |
 | `keepalive_time_sec` | Idle time before TCP keepalive starts |
@@ -190,6 +191,38 @@ Example with a fingerprint set:
 ```
 
 The `fingerprint` field is optional. Omitting it is equivalent to `"default"`, so all existing config files continue to work without changes.
+
+#### ClientHello Fragmentation
+
+The `fragment` option splits the real ClientHello across multiple TCP writes so no single TCP segment contains the complete SNI hostname. This defeats DPI that inspects individual segments rather than reassembling streams.
+
+The technique is applied after the fake-SNI injection is confirmed and before the bidirectional relay starts.
+
+| Sub-field | Description |
+|---|---|
+| `sni_chunk` | Bytes per SNI chunk. `0` sends the hostname as one write but still isolated from surrounding TLS data. Default: `3`. |
+| `delay_ms` | Milliseconds to sleep between consecutive fragment writes. Default: `0`. |
+
+Example with fragmentation enabled:
+
+```json
+{
+  "listeners": [
+    {
+      "listen": "127.0.0.1:40443",
+      "connect": "172.67.139.236:443",
+      "fake_sni": "security.vercel.com",
+      "fingerprint": "chrome120",
+      "fragment": {
+        "sni_chunk": 3,
+        "delay_ms": 0
+      }
+    }
+  ]
+}
+```
+
+Omitting the `fragment` field disables fragmentation. The two techniques are independent: you can use `fingerprint` without `fragment`, `fragment` without `fingerprint`, or both together.
 
 #### Step 3: Rewrite Your Client Address
 
@@ -446,6 +479,7 @@ nslookup myserver.example.com
 | `connect` | IP و پورت Cloudflare؛ بهتر است IP باشد نه دامنه |
 | `fake_sni` | SNI جعلی که در ClientHello نامعتبر قرار می‌گیرد |
 | `fingerprint` | پروفایل اثرانگشت TLS ClientHello (اختیاری، پیش‌فرض: `"default"`) |
+| `fragment` | تنظیمات تقطیع ClientHello (اختیاری، برای غیرفعال کردن حذف شود) |
 | `conn_timeout_sec` | زمان انتظار برای اتصال TCP به مقصد |
 | `handshake_timeout_sec` | زمان انتظار برای تایید ACK پکت جعلی |
 | `keepalive_time_sec` | زمان بیکاری قبل از شروع TCP keepalive |
@@ -484,6 +518,38 @@ nslookup myserver.example.com
 ```
 
 فیلد `fingerprint` اختیاری است. نوشته نشدن آن معادل `"default"` است و تمام کانفیگ‌های قدیمی بدون تغییر کار می‌کنند.
+
+#### تقطیع ClientHello
+
+گزینه `fragment` باعث می‌شود ClientHello واقعی در چند write جداگانه TCP ارسال شود؛ بنابراین هیچ segment تکی حاوی نام SNI کامل نخواهد بود. این روش DPIهایی را که segment به segment می‌خوانند و stream را reassemble نمی‌کنند دور می‌زند.
+
+این تکنیک بعد از تایید تزریق فیک SNI و قبل از شروع relay دوطرفه اجرا می‌شود.
+
+| زیرفیلد | توضیح |
+|---|---|
+| `sni_chunk` | تعداد بایت در هر chunk از نام SNI. مقدار `0` کل hostname را در یک write می‌فرستد اما باز هم از داده‌های اطراف جدا می‌ماند. پیش‌فرض: `3`. |
+| `delay_ms` | میلی‌ثانیه تأخیر بین write‌های متوالی fragment. پیش‌فرض: `0`. |
+
+نمونه با fragment فعال:
+
+```json
+{
+  "listeners": [
+    {
+      "listen": "127.0.0.1:40443",
+      "connect": "172.67.139.236:443",
+      "fake_sni": "security.vercel.com",
+      "fingerprint": "chrome120",
+      "fragment": {
+        "sni_chunk": 3,
+        "delay_ms": 0
+      }
+    }
+  ]
+}
+```
+
+نوشته نشدن فیلد `fragment` به معنی غیرفعال بودن fragmentation است. این دو تکنیک مستقل از هم هستند: می‌توان `fingerprint` بدون `fragment`، `fragment` بدون `fingerprint`، یا هر دو را با هم استفاده کرد.
 
 #### مرحله ۳: تغییر کانفیگ کلاینت
 
