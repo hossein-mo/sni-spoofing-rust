@@ -1,5 +1,6 @@
 pub mod config;
 pub mod error;
+pub mod fragment;
 mod handler;
 mod listener;
 pub mod packet;

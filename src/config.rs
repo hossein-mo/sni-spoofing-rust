@@ -2,6 +2,7 @@ use std::net::SocketAddr;
 
 use serde::{Deserialize, Serialize};
 
+use crate::fragment::FragmentConfig;
 use crate::packet::fingerprint::TlsFingerprint;
 
 fn default_conn_timeout_sec() -> u64 {
@@ -45,6 +46,8 @@ pub struct ListenerConfig {
     pub fake_sni: String,
     #[serde(default)]
     pub fingerprint: TlsFingerprint,
+    #[serde(default)]
+    pub fragment: Option<FragmentConfig>,
     #[serde(default = "default_conn_timeout_sec")]
     pub conn_timeout_sec: u64,
     #[serde(default = "default_handshake_timeout_sec")]
@@ -118,6 +121,7 @@ impl Default for ListenerConfig {
             connect: "172.67.139.236:443".parse().unwrap(),
             fake_sni: "security.vercel.com".into(),
             fingerprint: TlsFingerprint::Default,
+            fragment: None,
             conn_timeout_sec: default_conn_timeout_sec(),
             handshake_timeout_sec: default_handshake_timeout_sec(),
             keepalive_time_sec: default_keepalive_time_sec(),

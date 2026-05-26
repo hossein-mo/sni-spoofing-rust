@@ -76,6 +76,7 @@ pub async fn run_listener(
                 let upstream = lc.connect;
                 let sni = lc.fake_sni.clone();
                 let fp = lc.fingerprint.clone();
+                let frag = lc.fragment.clone();
                 let tx = cmd_tx.clone();
                 let lip = local_ip;
                 let conn_timeout = lc.conn_timeout_sec;
@@ -89,6 +90,7 @@ pub async fn run_listener(
                         upstream,
                         sni,
                         fp,
+                        frag,
                         lip,
                         tx,
                         conn_timeout,
