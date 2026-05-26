@@ -2,6 +2,8 @@ use std::net::SocketAddr;
 
 use serde::{Deserialize, Serialize};
 
+use crate::packet::fingerprint::TlsFingerprint;
+
 fn default_conn_timeout_sec() -> u64 {
     5
 }
@@ -41,6 +43,8 @@ pub struct ListenerConfig {
     pub listen: SocketAddr,
     pub connect: SocketAddr,
     pub fake_sni: String,
+    #[serde(default)]
+    pub fingerprint: TlsFingerprint,
     #[serde(default = "default_conn_timeout_sec")]
     pub conn_timeout_sec: u64,
     #[serde(default = "default_handshake_timeout_sec")]
@@ -113,6 +117,7 @@ impl Default for ListenerConfig {
             listen: "127.0.0.1:40443".parse().unwrap(),
             connect: "172.67.139.236:443".parse().unwrap(),
             fake_sni: "security.vercel.com".into(),
+            fingerprint: TlsFingerprint::Default,
             conn_timeout_sec: default_conn_timeout_sec(),
             handshake_timeout_sec: default_handshake_timeout_sec(),
             keepalive_time_sec: default_keepalive_time_sec(),

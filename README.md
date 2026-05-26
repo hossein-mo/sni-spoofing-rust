@@ -151,6 +151,7 @@ Replace `CLOUDFLARE_IP` with the resolved IP.
 | `listen` | Local address and port where sni-spoof-rs accepts client connections |
 | `connect` | Cloudflare IP and port to forward to; use an IP, not a hostname |
 | `fake_sni` | Fake SNI inserted into the intentionally invalid ClientHello |
+| `fingerprint` | TLS ClientHello fingerprint profile (optional, default: `"default"`) |
 | `conn_timeout_sec` | Upstream TCP connect timeout |
 | `handshake_timeout_sec` | Time to wait for the fake packet ACK confirmation |
 | `keepalive_time_sec` | Idle time before TCP keepalive starts |
@@ -160,6 +161,35 @@ Replace `CLOUDFLARE_IP` with the resolved IP.
 | `graceful_shutdown_sec` | Top-level shutdown drain time; `0` exits immediately |
 
 Multiple listeners are supported. Each listener maps one local port to one upstream.
+
+#### TLS Fingerprint Profiles
+
+The `fingerprint` field controls the cipher suites, extensions, and their ordering in the fake ClientHello packet. Some DPI systems perform JA3/JA4 fingerprint matching and only allow traffic that looks like a known real browser. Setting this field makes the fake packet match that browser's fingerprint exactly.
+
+| Value | Description |
+|---|---|
+| `"default"` | Original built-in template. Backward compatible; used when the field is omitted. |
+| `"chrome120"` | Chrome 120 / Chromium. Includes GREASE randomisation and Chrome-specific ALPS extension. |
+| `"edge120"` | Edge 120. Chromium engine; identical fingerprint to `chrome120`. |
+| `"firefox120"` | Firefox 120. CHACHA20 before AES-256 in cipher order; includes 3DES and SCSV; no GREASE. |
+| `"safari17"` | Safari 17 / WebKit. ECDSA-first cipher order; no GREASE, no session ticket, no compress_certificate. |
+
+Example with a fingerprint set:
+
+```json
+{
+  "listeners": [
+    {
+      "listen": "127.0.0.1:40443",
+      "connect": "172.67.139.236:443",
+      "fake_sni": "security.vercel.com",
+      "fingerprint": "chrome120"
+    }
+  ]
+}
+```
+
+The `fingerprint` field is optional. Omitting it is equivalent to `"default"`, so all existing config files continue to work without changes.
 
 #### Step 3: Rewrite Your Client Address
 
@@ -415,6 +445,7 @@ nslookup myserver.example.com
 | `listen` | آدرس و پورتی که برنامه روی آن اتصال محلی می‌گیرد |
 | `connect` | IP و پورت Cloudflare؛ بهتر است IP باشد نه دامنه |
 | `fake_sni` | SNI جعلی که در ClientHello نامعتبر قرار می‌گیرد |
+| `fingerprint` | پروفایل اثرانگشت TLS ClientHello (اختیاری، پیش‌فرض: `"default"`) |
 | `conn_timeout_sec` | زمان انتظار برای اتصال TCP به مقصد |
 | `handshake_timeout_sec` | زمان انتظار برای تایید ACK پکت جعلی |
 | `keepalive_time_sec` | زمان بیکاری قبل از شروع TCP keepalive |
@@ -424,6 +455,35 @@ nslookup myserver.example.com
 | `graceful_shutdown_sec` | زمان انتظار هنگام خاموش شدن؛ مقدار `0` یعنی خروج سریع |
 
 می‌توانید چند listener داشته باشید؛ هر listener یک پورت محلی را به یک مقصد وصل می‌کند.
+
+#### پروفایل‌های اثرانگشت TLS
+
+فیلد `fingerprint` مشخص می‌کند که ClientHello جعلی از نظر cipher suite، extensionها و ترتیب آن‌ها شبیه کدام مرورگر واقعی باشد. برخی سیستم‌های DPI از الگوریتم‌هایی مثل JA3/JA4 برای شناسایی نوع کلاینت استفاده می‌کنند؛ با تنظیم این فیلد، پکت جعلی دقیقاً شبیه ترافیک همان مرورگر به نظر می‌رسد.
+
+| مقدار | توضیح |
+|---|---|
+| `"default"` | قالب داخلی اصلی برنامه. وقتی فیلد نوشته نشود همین مقدار استفاده می‌شود. |
+| `"chrome120"` | Chrome 120 / Chromium. شامل GREASE تصادفی و extension اختصاصی ALPS کروم. |
+| `"edge120"` | Edge 120. موتور Chromium؛ اثرانگشت یکسان با `chrome120`. |
+| `"firefox120"` | Firefox 120. CHACHA20 قبل از AES-256 در ترتیب cipher؛ بدون GREASE. |
+| `"safari17"` | Safari 17 / WebKit. cipher های ECDSA اول؛ بدون GREASE و session ticket. |
+
+نمونه با تنظیم fingerprint:
+
+```json
+{
+  "listeners": [
+    {
+      "listen": "127.0.0.1:40443",
+      "connect": "172.67.139.236:443",
+      "fake_sni": "security.vercel.com",
+      "fingerprint": "chrome120"
+    }
+  ]
+}
+```
+
+فیلد `fingerprint` اختیاری است. نوشته نشدن آن معادل `"default"` است و تمام کانفیگ‌های قدیمی بدون تغییر کار می‌کنند.
 
 #### مرحله ۳: تغییر کانفیگ کلاینت
 

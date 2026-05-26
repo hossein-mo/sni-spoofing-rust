@@ -7,7 +7,7 @@ use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
 use crate::error::HandlerError;
-use crate::packet::tls;
+use crate::packet::fingerprint::TlsFingerprint;
 use crate::proto::{ConnId, Deregistration, Registration, SnifferCommand, SnifferResult};
 use crate::relay;
 
@@ -38,6 +38,7 @@ pub async fn handle_connection(
     client: TcpStream,
     upstream_addr: SocketAddr,
     fake_sni: String,
+    fingerprint: TlsFingerprint,
     local_ip: std::net::IpAddr,
     cmd_tx: std::sync::mpsc::Sender<SnifferCommand>,
     conn_timeout_sec: u64,
@@ -51,6 +52,7 @@ pub async fn handle_connection(
         client,
         upstream_addr,
         &fake_sni,
+        &fingerprint,
         local_ip,
         &cmd_tx,
         conn_timeout_sec,
@@ -78,6 +80,7 @@ async fn handle_inner(
     client: TcpStream,
     upstream_addr: SocketAddr,
     fake_sni: &str,
+    fingerprint: &TlsFingerprint,
     local_ip: std::net::IpAddr,
     cmd_tx: &std::sync::mpsc::Sender<SnifferCommand>,
     conn_timeout_sec: u64,
@@ -87,7 +90,7 @@ async fn handle_inner(
     idle_timeout: Option<u64>,
     buffer_size: usize,
 ) -> Result<(), HandlerError> {
-    let fake_payload = tls::build_client_hello(fake_sni);
+    let fake_payload = fingerprint.build_client_hello(fake_sni);
 
     let upstream_sock = if upstream_addr.is_ipv4() {
         socket2::Socket::new(
