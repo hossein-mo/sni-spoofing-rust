@@ -42,7 +42,13 @@ pub async fn run_listener(
 ) {
     let listener = match TcpListener::bind(lc.listen).await {
         Ok(l) => {
-            info!(listen = %lc.listen, upstream = %lc.connect, sni = %lc.fake_sni, "listener started");
+            info!(
+                listen = %lc.listen,
+                upstream = %lc.connect,
+                sni = %lc.fake_sni,
+                fingerprint = ?lc.fingerprint,
+                "listener started"
+            );
             l
         }
         Err(e) => {
@@ -69,6 +75,7 @@ pub async fn run_listener(
             Ok((stream, peer)) => {
                 let upstream = lc.connect;
                 let sni = lc.fake_sni.clone();
+                let fp = lc.fingerprint.clone();
                 let tx = cmd_tx.clone();
                 let lip = local_ip;
                 let conn_timeout = lc.conn_timeout_sec;
@@ -81,6 +88,7 @@ pub async fn run_listener(
                         stream,
                         upstream,
                         sni,
+                        fp,
                         lip,
                         tx,
                         conn_timeout,
